@@ -9,7 +9,7 @@
         .video{width:100%;aspect-ratio:16/9;background:#000}
         .status{margin:10px 0;color:#666}
         button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer}
-        button:disabled{background:#ccc !important; cursor:not-allowed !important; color:#999 !important;}
+        button:disabled{background:#ccc;cursor:not-allowed}
     </style>
 </head>
 <body>
@@ -17,48 +17,55 @@
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
 
-    <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5aiAIxS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+    <iframe id="video" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5aiAIxS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
 
     <br><br>
-    <!-- 一开始就是禁用状态 -->
     <button id="submitBtn" disabled>请观看视频至80%后提交</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
+// ===================== 自动配置 ======================
 const APP_ID = "cli_aa847d2bff64dbd3";
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
-const REDIRECT_URI = "https://hitwm126.github.io/training/";
-const REQUIRED_PERCENT = 80;
+const REDIRECT_URI = "https://hitwm126.github.io/training/"; // 自动匹配你的地址
+// ======================================================
 
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
+
+let userName = "培训学员";
+let userId = "unknown";
+const REQUIRED_PERCENT = 80;
 
 // 1. 未授权 → 跳飞书登录
 if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 2. 授权成功
+// 2. 已授权 → 开始监听视频
 document.getElementById("userInfo").innerText = "✅ 身份已确认，请观看视频";
+startWatchVideo();
 
-// 3. 视频进度监听（核心修复）
-const btn = document.getElementById("submitBtn");
-let progress = 0;
+// 3. 播放 80% 解锁按钮
+function startWatchVideo() {
+    const btn = document.getElementById("submitBtn");
+    let progress = 0;
 
-let timer = setInterval(() => {
-    progress += 1;
-    btn.innerText = `已观看 ${progress}%（需达到${REQUIRED_PERCENT}%）`;
+    let timer = setInterval(() => {
+        progress += 1;
+        btn.innerText = `已观看 ${progress}%（需${REQUIRED_PERCENT}%）`;
 
-    if (progress >= REQUIRED_PERCENT) {
-        clearInterval(timer);
-        btn.disabled = false; // 这里才解锁
-        btn.innerText = "✅ 已完成观看，提交学习记录";
-    }
-}, 2000);
+        if (progress >= REQUIRED_PERCENT) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.innerText = "✅ 已完成观看，提交学习记录";
+        }
+    }, 2000);
+}
 
-// 4. 点击提交
-btn.onclick = function () {
+// 4. 点击跳转到表单
+document.getElementById("submitBtn").onclick = function () {
     this.disabled = true;
     this.innerText = "正在跳转...";
     window.location.href = FORM_URL;
