@@ -29,7 +29,7 @@ const APP_TOKEN = "OteYbXfEjaKLJas5gVIclax3njg";
 const TABLE_ID = "tblCK42arjiynhcf";
 // ============================================================
 
-// 🔥 这里用我给你的公共代理（国内可用，免费，无CORS）
+// 🔥 这里用公共代理（国内可用，免费，解决CORS）
 const PROXY = "https://feishu-proxy.1step.run";
 
 const REDIRECT_URI = window.location.origin + window.location.pathname;
@@ -44,7 +44,7 @@ if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${redirectUrl}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 2. 获取用户信息
+// 2. 获取用户信息（全走代理）
 (async () => {
     try {
         // 获取 tenant_access_token
@@ -79,10 +79,11 @@ if (!code) {
         document.getElementById("submitBtn").style.display = "block";
     } catch (e) {
         document.getElementById("userInfo").innerText = "❌ 身份验证失败：" + e.toString();
+        console.error("身份验证错误", e);
     }
 })();
 
-// 3. 提交学习记录
+// 3. 提交学习记录（全走代理）
 document.getElementById("submitBtn").onclick = async function () {
     this.disabled = true;
     this.innerText = "正在记录...";
@@ -114,6 +115,7 @@ document.getElementById("submitBtn").onclick = async function () {
         });
 
         const result = await addRes.json();
+        console.log("飞书返回结果", result);
 
         if (result.code === 0) {
             msgEl.innerText = "✅ 学习完成，已记录到多维表格";
@@ -125,6 +127,7 @@ document.getElementById("submitBtn").onclick = async function () {
 
     } catch (err) {
         msgEl.innerText = "❌ 网络错误：" + err.toString();
+        console.error("提交记录错误", err);
         this.disabled = false;
     }
 };
