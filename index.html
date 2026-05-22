@@ -9,44 +9,87 @@
         .video{width:100%;aspect-ratio:16/9;background:#000}
         .status{margin:10px 0;color:#666}
         button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer}
+        /* 禁用样式 */
+        button:disabled{background:#ccc;cursor:not-allowed}
+        .progress{margin:10px 0;color:#0066ff;font-weight:bold}
     </style>
 </head>
 <body>
 <div class="container">
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
-    <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+    <!-- 给iframe加id，方便JS获取 -->
+    <iframe id="videoIframe" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+    
+    <!-- 实时显示播放进度 -->
+    <div id="progressText" class="progress">播放进度：0% / 需播放至80%解锁提交按钮</div>
+    
     <br><br>
-    <button id="submitBtn" style="display:none">已学习完毕，提交记录</button>
+    <!-- 默认禁用按钮 -->
+    <button id="submitBtn" style="display:none" disabled>已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
 // 基础配置
 const APP_ID = "cli_aa847d2bff64dbd3";
-// 替换成你自己的飞书表单链接
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
+// 播放进度配置：触发按钮的进度（80%）
+const WATCH_PERCENT = 10;
+let isBtnUnlocked = false; // 按钮是否已解锁
+
 // 1. 无授权码：跳飞书登录
 if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 } else {
-    // 2. 有授权码：直接认为身份验证成功（飞书已经帮你做了登录校验）
+    // 2. 身份验证成功
     document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
-    document.getElementById("submitBtn").style.display = "block";
+    const submitBtn = document.getElementById("submitBtn");
+    submitBtn.style.display = "block"; // 显示按钮（但默认禁用）
+    
+    // 开始监听视频播放进度
+    listenVideoProgress();
 }
 
-// 点击按钮带参数跳转表单
+// 监听飞书视频播放进度（核心功能）
+function listenVideoProgress() {
+    const videoIframe = document.getElementById("videoIframe");
+    const progressText = document.getElementById("progressText");
+    const submitBtn = document.getElementById("submitBtn");
+
+    // 监听iframe消息（飞书视频会实时发送播放进度）
+    window.addEventListener("message", function(e) {
+        // 只接收来自飞书的消息
+        if (!e.data || !e.data.type || e.data.type !== "videoProgress") return;
+        
+        // 获取当前播放进度（百分比）
+        const currentPercent = parseFloat(e.data.percent);
+        
+        // 更新页面显示
+        progressText.innerText = `播放进度：${currentPercent.toFixed(1)}% / 需播放至${WATCH_PERCENT}%解锁提交按钮`;
+
+        // 判断：达到指定进度 → 解锁按钮
+        if (currentPercent >= WATCH_PERCENT && !isBtnUnlocked) {
+            isBtnUnlocked = true;
+            submitBtn.disabled = false; // 启用按钮
+            progressText.innerText = `✅ 播放进度：${currentPercent.toFixed(1)}%，已解锁提交按钮！`;
+            progressText.style.color = "#00b42a";
+        }
+    });
+}
+
+// 点击按钮跳转表单
 document.getElementById("submitBtn").onclick = function(){
+    if(!isBtnUnlocked) return; // 防御性判断
+    
     const now = new Date().toLocaleString("zh-CN");
-    // 用code作为用户唯一标识，表单里可以用它来区分不同用户
-    const jumpUrl = `${FORM_URL}?授权码=${encodeURIComponent(code)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
+    const jumpUrl = `${FORM_URL}?授权码=${encodeURIComponent(code)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b&播放进度=${WATCH_PERCENT}%`;
     window.open(jumpUrl,"_blank");
     document.getElementById("msg").innerText = "✅ 已跳转到提交表单，请完成提交";
 }
 </script>
 </body>
-</html>
