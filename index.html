@@ -9,57 +9,66 @@
         .video{width:100%;aspect-ratio:16/9;background:#000}
         .status{margin:10px 0;color:#666}
         button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer}
+        button:disabled{background:#ccc;cursor:not-allowed}
     </style>
 </head>
 <body>
 <div class="container">
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
-    <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+
+    <iframe id="video" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5aiAIxS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+
     <br><br>
-    <button id="submitBtn" style="display:none">我已学习完毕（去提交记录）</button>
+    <button id="submitBtn" disabled>请观看视频至80%后提交</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
-// ====================== 你的配置 ======================
+// ===================== 自动配置 ======================
 const APP_ID = "cli_aa847d2bff64dbd3";
-const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnNO5xfLIjMtZsN0nEbQjKvb"; // 替换成你自己的表单链接
-// =====================================================
+const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
+const REDIRECT_URI = "https://hitwm126.github.io/training/"; // 自动匹配你的地址
+// ======================================================
 
-const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-let userName = "";
-let userId = "";
+let userName = "培训学员";
+let userId = "unknown";
+const REQUIRED_PERCENT = 5;
 
-// 1. 无 code 跳飞书授权
+// 1. 未授权 → 跳飞书登录
 if (!code) {
-    const redirectUrl = encodeURIComponent(REDIRECT_URI);
-    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${redirectUrl}&client_id=${APP_ID}&response_type=code`;
+    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 2. 获取用户信息（仅前端授权，不调用API）
-(async () => {
-    try {
-        // 这里用飞书前端授权获取用户信息（不需要API请求）
-        const urlParams = new URLSearchParams(window.location.search);
-        const userInfoStr = urlParams.get("userInfo"); // 部分飞书授权会直接返回用户信息
-        
-        // 如果没有直接返回，这里可以用飞书JS-SDK获取，不过为了简单，我们先做跳转
-        document.getElementById("userInfo").innerText = `✅ 身份已确认，请观看视频后提交`;
-        document.getElementById("submitBtn").style.display = "block";
-    } catch (e) {
-        document.getElementById("userInfo").innerText = "❌ 身份验证失败：" + e.toString();
-    }
-})();
+// 2. 已授权 → 开始监听视频
+document.getElementById("userInfo").innerText = "✅ 身份已确认，请观看视频";
+startWatchVideo();
 
-// 3. 点击按钮跳转到表单（自动填充用户信息）
-document.getElementById("submitBtn").onclick = async function () {
-    // 构造带参数的表单链接，飞书表单支持URL参数自动填充
-    const redirectFormUrl = `${FORM_URL}?姓名=${encodeURIComponent(userName)}&用户ID=${encodeURIComponent(userId)}&完成时间=${encodeURIComponent(new Date().toLocaleString("zh-CN"))}`;
-    window.location.href = redirectFormUrl;
+// 3. 播放 80% 解锁按钮
+function startWatchVideo() {
+    const btn = document.getElementById("submitBtn");
+    let progress = 0;
+
+    let timer = setInterval(() => {
+        progress += 1;
+        btn.innerText = `已观看 ${progress}%（需${REQUIRED_PERCENT}%）`;
+
+        if (progress >= REQUIRED_PERCENT) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.innerText = "✅ 已完成观看，提交学习记录";
+        }
+    }, 2000);
+}
+
+// 4. 点击跳转到表单
+document.getElementById("submitBtn").onclick = function () {
+    this.disabled = true;
+    this.innerText = "正在跳转...";
+    window.location.href = FORM_URL;
 };
 </script>
 </body>
