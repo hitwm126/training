@@ -17,51 +17,40 @@
     <div id="userInfo" class="status">正在验证飞书身份...</div>
     <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
     <br><br>
-    <button id="submitBtn" style="display:none">已学习完毕，提交记录</button>
+    <button id="submitBtn">已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
 // 基础配置
 const APP_ID = "cli_aa847d2bff64dbd3";
-// 替换成你自己的飞书表单链接
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
 const REDIRECT_URI = window.location.origin + window.location.pathname;
+
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-let user = {name:"",openId:""};
-
-// 无授权码跳转登录
+// 无 code → 跳飞书授权
 if (!code) {
-    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
+  window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 获取登录用户信息
-(async ()=>{
-    try{
-        const res = await fetch(`https://open.feishu.cn/open-apis/authen/v1/user_info`,{
-            headers:{Authorization:`Bearer ${params.get("access_token")}`}
-        });
-        const data = await res.json();
-        if(data.code===0){
-            user.name = data.data.name;
-            user.openId = data.data.open_id;
-            document.getElementById("userInfo").innerText = `✅ 当前用户：${user.name}`;
-            document.getElementById("submitBtn").style.display = "block";
-        }
-    }catch(e){
-        document.getElementById("userInfo").innerText = "身份获取失败";
-    }
-})();
-
-// 点击按钮带参数跳转表单
-document.getElementById("submitBtn").onclick = function(){
-    const now = new Date().toLocaleString("zh-CN");
-    // 拼接字段参数，和表单字段名一致
-    const jumpUrl = `${FORM_URL}?姓名=${encodeURIComponent(user.name)}&用户ID=${encodeURIComponent(user.openId)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
-    window.open(jumpUrl,"_blank");
+// 有 code → 证明已登录，直接显示用户状态
+if (code) {
+  document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
+  document.getElementById("submitBtn").style.display = "block";
 }
+
+// 提交学习记录
+document.getElementById("submitBtn").onclick = function () {
+  const now = new Date().toLocaleString("zh-CN");
+  
+  // 跳转表单并自动带上参数
+  const jumpUrl = `${FORM_URL}?authCode=${encodeURIComponent(code)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
+  
+  window.open(jumpUrl, "_blank");
+  document.getElementById("msg").innerText = "✅ 记录已提交，正在跳转到表单...";
+};
 </script>
 </body>
 </html>
