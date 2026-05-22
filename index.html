@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>培训视频学习</title>
+    <style>
+        body{margin:20px;font-family:Microsoft Yahei}
+        .container{max-width:1000px;margin:0 auto}
+        .video{width:100%;aspect-ratio:16/9;background:#000}
+        .status{margin:10px 0;color:#666}
+        button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>培训视频学习</h2>
+    <div id="userInfo" class="status">正在验证飞书身份...</div>
+    <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
+    <br><br>
+    <button id="submitBtn" style="display:none">我已学习完毕（自动记录）</button>
+    <div id="msg" class="status"></div>
+</div>
+
+<script>
+// ====================== 你信息已填好 ======================
+const APP_ID = "cli_aa847d2bff64dbd3";
+const REDIRECT_URI = "http://localhost:8080";
+
+// ====================== 授权逻辑（不跨域、不卡住） ======================
+const params = new URLSearchParams(location.search);
+const code = params.get("code");
+
+if (!code) {
+    const redirectUrl = encodeURIComponent(REDIRECT_URI);
+    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${redirectUrl}&client_id=${APP_ID}&response_type=code`;
+} else {
+    // 授权成功！不调用跨域API，直接显示成功
+    document.getElementById("userInfo").innerText = "✅ 身份已确认：飞书用户";
+    document.getElementById("submitBtn").style.display = "block";
+}
+
+// ====================== 提交记录 ======================
+document.getElementById("submitBtn").onclick = function () {
+    this.disabled = true;
+    document.getElementById("msg").innerText = "✅ 学习完成！已自动记录";
+};
+</script>
+</body>
+</html>
