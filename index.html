@@ -17,40 +17,36 @@
     <div id="userInfo" class="status">正在验证飞书身份...</div>
     <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
     <br><br>
-    <button id="submitBtn">已学习完毕，提交记录</button>
+    <button id="submitBtn" style="display:none">已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
 // 基础配置
 const APP_ID = "cli_aa847d2bff64dbd3";
+// 替换成你自己的飞书表单链接
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
 const REDIRECT_URI = window.location.origin + window.location.pathname;
-
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-// 无 code → 跳飞书授权
+// 1. 无授权码：跳飞书登录
 if (!code) {
-  window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
+    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
+} else {
+    // 2. 有授权码：直接认为身份验证成功（飞书已经帮你做了登录校验）
+    document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
+    document.getElementById("submitBtn").style.display = "block";
 }
 
-// 有 code → 证明已登录，直接显示用户状态
-if (code) {
-  document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
-  document.getElementById("submitBtn").style.display = "block";
+// 点击按钮带参数跳转表单
+document.getElementById("submitBtn").onclick = function(){
+    const now = new Date().toLocaleString("zh-CN");
+    // 用code作为用户唯一标识，表单里可以用它来区分不同用户
+    const jumpUrl = `${FORM_URL}?授权码=${encodeURIComponent(code)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
+    window.open(jumpUrl,"_blank");
+    document.getElementById("msg").innerText = "✅ 已跳转到提交表单，请完成提交";
 }
-
-// 提交学习记录
-document.getElementById("submitBtn").onclick = function () {
-  const now = new Date().toLocaleString("zh-CN");
-  
-  // 跳转表单并自动带上参数
-  const jumpUrl = `${FORM_URL}?authCode=${encodeURIComponent(code)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
-  
-  window.open(jumpUrl, "_blank");
-  document.getElementById("msg").innerText = "✅ 记录已提交，正在跳转到表单...";
-};
 </script>
 </body>
 </html>
