@@ -14,35 +14,96 @@
 <body>
 <div class="container">
     <h2>培训视频学习</h2>
-    <div id="userInfo" class="status">正在验证身份...</div>
+    <div id="userInfo" class="status">正在验证飞书身份...</div>
     <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
     <br><br>
-    <button id="submitBtn">我已学习完毕（自动记录）</button>
+    <button id="submitBtn" style="display:none">我已学习完毕（自动记录）</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
-// ====================== GitHub Pages 可用版本 ======================
-// 自动确认身份（GitHub 托管专用，无跨域、无报错）
-document.getElementById("userInfo").innerText = "✅ 身份已确认：企业用户";
+// ====================== 你只需要填这里 ======================
+const APP_ID = "cli_aa847d2bff64dbd3";
+const APP_SECRET = "7c7Gjq16zQmPktlfWN0TgbQczU8jC8vh";
+const APP_TOKEN = "OteYbXfEjaKLJas5gVIclax3njg";
+const TABLE_ID = "tblCK42arjiynhcf";
+// ==========================================================
 
-// 点击完成学习
-document.getElementById("submitBtn").onclick = function () {
-    this.disabled = true;
-    this.innerText = "已完成学习";
-    document.getElementById("msg").innerText = "✅ 学习完成！已自动记录";
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+const params = new URLSearchParams(location.search);
+const code = params.get("code");
 
-    // 本地记录，防止重复提交
-    localStorage.setItem("videoLearned", "true");
-};
+let userInfo = null;
 
-// 如果已经学过，自动禁用按钮
-if (localStorage.getItem("videoLearned")) {
-    const btn = document.getElementById("submitBtn");
-    btn.disabled = true;
-    btn.innerText = "已完成学习";
-    document.getElementById("msg").innerText = "✅ 你已完成学习";
+// 1. 无 code 则去授权
+if (!code) {
+    const redirectUrl = encodeURIComponent(REDIRECT_URI);
+    window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${redirectUrl}&client_id=${APP_ID}&response_type=code`;
 }
+
+// 2. 有 code → 获取用户信息
+(async () => {
+    try {
+        // 获取 access_token
+        const tokenRes = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
+        });
+        const { tenant_access_token } = await tokenRes.json();
+
+        // 获取用户信息
+        const userRes = await fetch(`https://open.feishu.cn/open-apis/authen/v1/access_token?code=${code}`, {
+            headers: { "Authorization": `Bearer ${tenant_access_token}` }
+        });
+        const userData = await userRes.json();
+        userInfo = userData.data;
+
+        document.getElementById("userInfo").innerText = `✅ 身份已确认：${userInfo.name}`;
+        document.getElementById("submitBtn").style.display = "block";
+    } catch (e) {
+        document.getElementById("userInfo").innerText = "❌ 身份验证失败";
+    }
+})();
+
+// 3. 提交学习记录到多维表格
+document.getElementById("submitBtn").onclick = async function () {
+    this.disabled = true;
+    this.innerText = "正在记录...";
+
+    try {
+        // 获取 tenant_access_token
+        const tokenRes = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+            method: "POST",
+            body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
+        });
+        const { tenant_access_token } = await tokenRes.json();
+
+        // 写入多维表格
+        await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${TABLE_ID}/records`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${tenant_access_token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                fields: {
+                    "姓名": userInfo.name,
+                    "用户ID": userInfo.open_id,
+                    "完成时间": new Date().toLocaleString("zh-CN"),
+                    "状态": "已完成学习",
+                    "视频ID": "AC1dbFxXio5iAIxJwS0c5dssn0b"
+                }
+            })
+        });
+
+        document.getElementById("msg").innerText = "✅ 学习完成，已自动记录到多维表格";
+        this.innerText = "已完成";
+    } catch (err) {
+        document.getElementById("msg").innerText = "❌ 记录失败，请重试";
+        this.disabled = false;
+    }
+};
 </script>
 </body>
 </html>
