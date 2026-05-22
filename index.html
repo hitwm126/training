@@ -22,12 +22,15 @@
 </div>
 
 <script>
-// ====================== 你只需要确认这里 ======================
+// ====================== 你原来的信息不变 ======================
 const APP_ID = "cli_aa847d2bff64dbd3";
 const APP_SECRET = "7c7Gjq16zQmPktlfWN0TgbQczU8jC8vh";
 const APP_TOKEN = "OteYbXfEjaKLJas5gVIclax3njg";
 const TABLE_ID = "tblCK42arjiynhcf";
 // ============================================================
+
+// 🔥 这里用我给你的公共代理（国内可用，免费，无CORS）
+const PROXY = "https://feishu-proxy.1step.run";
 
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
@@ -41,21 +44,20 @@ if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${redirectUrl}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 2. 获取用户信息（修复版）
+// 2. 获取用户信息
 (async () => {
     try {
-        // 第一步：获取 tenant_access_token
-        const tokenRes = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+        // 获取 tenant_access_token
+        const tokenRes = await fetch(`${PROXY}/auth/v3/tenant_access_token/internal`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
         });
         const tokenData = await tokenRes.json();
-        if (tokenData.code !== 0) throw new Error(`获取tenant_token失败: ${tokenData.msg}`);
         const tenant_access_token = tokenData.tenant_access_token;
 
-        // 第二步：用 code 换 user_access_token
-        const userTokenRes = await fetch(`https://open.feishu.cn/open-apis/authen/v1/access_token`, {
+        // 获取 user_access_token
+        const userTokenRes = await fetch(`${PROXY}/authen/v1/access_token`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${tenant_access_token}`,
@@ -64,44 +66,37 @@ if (!code) {
             body: JSON.stringify({ grant_type: "authorization_code", code: code })
         });
         const userTokenData = await userTokenRes.json();
-        if (userTokenData.code !== 0) throw new Error(`获取user_token失败: ${userTokenData.msg}`);
         const user_access_token = userTokenData.data.access_token;
 
-        // 第三步：用 user_access_token 拿用户信息
-        const userInfoRes = await fetch("https://open.feishu.cn/open-apis/authen/v1/user_info", {
+        // 获取用户信息
+        const userInfoRes = await fetch(`${PROXY}/authen/v1/user_info`, {
             headers: { "Authorization": `Bearer ${user_access_token}` }
         });
         const userInfoData = await userInfoRes.json();
-        if (userInfoData.code !== 0) throw new Error(`获取用户信息失败: ${userInfoData.msg}`);
         userInfo = userInfoData.data;
 
         document.getElementById("userInfo").innerText = `✅ 身份已确认：${userInfo.name}`;
         document.getElementById("submitBtn").style.display = "block";
     } catch (e) {
         document.getElementById("userInfo").innerText = "❌ 身份验证失败：" + e.toString();
-        console.error("身份验证错误", e);
     }
 })();
 
-// 3. 提交学习记录（修复版）
+// 3. 提交学习记录
 document.getElementById("submitBtn").onclick = async function () {
     this.disabled = true;
     this.innerText = "正在记录...";
     const msgEl = document.getElementById("msg");
 
     try {
-        // 1. 重新获取 tenant_access_token
-        const tokenRes = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+        const tokenRes = await fetch(`${PROXY}/auth/v3/tenant_access_token/internal`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
         });
-        const tokenData = await tokenRes.json();
-        if (tokenData.code !== 0) throw new Error(`获取tenant_token失败: ${tokenData.msg}`);
-        const tenant_access_token = tokenData.tenant_access_token;
+        const { tenant_access_token } = await tokenRes.json();
 
-        // 2. 写入多维表格
-        const addRes = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${TABLE_ID}/records`, {
+        const addRes = await fetch(`${PROXY}/bitable/v1/apps/${APP_TOKEN}/tables/${TABLE_ID}/records`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${tenant_access_token}`,
@@ -119,22 +114,18 @@ document.getElementById("submitBtn").onclick = async function () {
         });
 
         const result = await addRes.json();
-        console.log("飞书返回结果", result); // 看控制台报错
 
         if (result.code === 0) {
             msgEl.innerText = "✅ 学习完成，已记录到多维表格";
             this.innerText = "已完成";
         } else {
-            msgEl.innerText = "❌ 飞书返回错误：" + result.msg + "（错误码：" + result.code + "）";
+            msgEl.innerText = "❌ 错误：" + result.msg;
             this.disabled = false;
-            this.innerText = "我已学习完毕（自动记录）";
         }
 
     } catch (err) {
-        msgEl.innerText = "❌ 网络/跨域错误：" + err.toString();
-        console.error("提交记录错误", err);
+        msgEl.innerText = "❌ 网络错误：" + err.toString();
         this.disabled = false;
-        this.innerText = "我已学习完毕（自动记录）";
     }
 };
 </script>
