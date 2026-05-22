@@ -9,67 +9,59 @@
         .video{width:100%;aspect-ratio:16/9;background:#000}
         .status{margin:10px 0;color:#666}
         button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer}
-        button:disabled{background:#ccc;cursor:not-allowed}
     </style>
 </head>
 <body>
 <div class="container">
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
-
-    <iframe id="video" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5aiAIxS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
-
+    <iframe class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allowfullscreen></iframe>
     <br><br>
-    <button id="submitBtn" disabled>请观看视频至80%后提交</button>
+    <button id="submitBtn" style="display:none">已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
-// ===================== 自动配置 ======================
+// 基础配置
 const APP_ID = "cli_aa847d2bff64dbd3";
+// 替换成你自己的飞书表单链接
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
-const REDIRECT_URI = "https://hitwm126.github.io/training/"; // 自动匹配你的地址
-// ======================================================
-
+const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-let userName = "培训学员";
-let userId = "unknown";
-const REQUIRED_PERCENT = 10;
+let user = {name:"",openId:""};
 
-// 1. 未授权 → 跳飞书登录
+// 无授权码跳转登录
 if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 }
 
-// 2. 已授权 → 开始监听视频
-document.getElementById("userInfo").innerText = "✅ 身份已确认，请观看视频";
-startWatchVideo();
-
-// 3. 播放 80% 解锁按钮
-function startWatchVideo() {
-    const btn = document.getElementById("submitBtn");
-    let progress = 0;
-
-    let timer = setInterval(() => {
-        progress += 1;
-        btn.innerText = `已观看 ${progress}%（需${REQUIRED_PERCENT}%）`;
-
-        if (progress >= REQUIRED_PERCENT) {
-            clearInterval(timer);
-            btn.disabled = false;
-            btn.innerText = "✅ 已完成观看，提交学习记录";
+// 获取登录用户信息
+(async ()=>{
+    try{
+        const res = await fetch(`https://open.feishu.cn/open-apis/authen/v1/user_info`,{
+            headers:{Authorization:`Bearer ${params.get("access_token")}`}
+        });
+        const data = await res.json();
+        if(data.code===0){
+            user.name = data.data.name;
+            user.openId = data.data.open_id;
+            document.getElementById("userInfo").innerText = `✅ 当前用户：${user.name}`;
+            document.getElementById("submitBtn").style.display = "block";
         }
-    }, 2000);
-}
+    }catch(e){
+        document.getElementById("userInfo").innerText = "身份获取失败";
+    }
+})();
 
-// 4. 点击跳转到表单
-document.getElementById("submitBtn").onclick = function () {
-    this.disabled = true;
-    this.innerText = "正在跳转...";
-    window.location.href = FORM_URL;
-};
+// 点击按钮带参数跳转表单
+document.getElementById("submitBtn").onclick = function(){
+    const now = new Date().toLocaleString("zh-CN");
+    // 拼接字段参数，和表单字段名一致
+    const jumpUrl = `${FORM_URL}?姓名=${encodeURIComponent(user.name)}&用户ID=${encodeURIComponent(user.openId)}&完成时间=${encodeURIComponent(now)}&状态=已完成学习&视频ID=AC1dbFxXio5iAIxJwS0c5dssn0b`;
+    window.open(jumpUrl,"_blank");
+}
 </script>
 </body>
 </html>
