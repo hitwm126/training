@@ -18,9 +18,11 @@
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
 
-    <iframe id="videoFrame" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allow="autoplay" allowfullscreen></iframe>
+    <!-- 已加上hideSidebar=1参数，隐藏右侧AI内容速览侧边栏 -->
+    <iframe id="videoFrame" class="video" 
+            src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b?hideSidebar=1" 
+            frameborder="0" allow="autoplay" allowfullscreen></iframe>
 
-    <!-- 只保留进度 + 提交按钮 -->
     <div id="progressText" class="progress">学习进度：0% / 需学习10分钟解锁提交</div>
     <button id="submitBtn" style="display:none" disabled>已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
@@ -33,7 +35,6 @@ const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-// 目标：学习 10 分钟（600秒）
 const NEED_SECONDS = 600;
 
 let studySeconds = 0;
@@ -59,7 +60,6 @@ function updateProgress() {
     document.getElementById("progressText").innerText = 
         `学习进度：${percent.toFixed(1)}% / 需学习10分钟解锁提交`;
 
-    // 达到10分钟，解锁按钮
     if (studySeconds >= NEED_SECONDS && !isUnlock) {
         isUnlock = true;
         clearInterval(timer);
@@ -78,7 +78,6 @@ function startTimer() {
         if (isUnlock) return;
         studySeconds++;
         updateProgress();
-        // 保存进度
         localStorage.setItem("study_progress", JSON.stringify({
             seconds: studySeconds,
             time: Date.now()
@@ -90,11 +89,8 @@ function startTimer() {
 if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 } else {
-    // 验证成功
     document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
     document.getElementById("submitBtn").style.display = "block";
-    
-    // 自动开始计时
     startTimer();
 }
 
