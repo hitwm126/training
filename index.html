@@ -18,9 +18,9 @@
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
 
-    <!-- 已加上hideSidebar=1参数，隐藏右侧AI内容速览侧边栏 -->
+    <!-- 注意：iframe保留原链接，不加无效参数 -->
     <iframe id="videoFrame" class="video" 
-            src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b?hideSidebar=1" 
+            src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" 
             frameborder="0" allow="autoplay" allowfullscreen></iframe>
 
     <div id="progressText" class="progress">学习进度：0% / 需学习10分钟解锁提交</div>
@@ -40,6 +40,7 @@ const NEED_SECONDS = 600;
 let studySeconds = 0;
 let timer = null;
 let isUnlock = false;
+const frame = document.getElementById("videoFrame");
 
 // 加载本地保存的进度
 function loadProgress() {
@@ -102,6 +103,29 @@ document.getElementById("submitBtn").onclick = function () {
     }
     window.open(FORM_URL, "_blank");
     document.getElementById("msg").innerText = "✅ 提交成功！";
+};
+
+// 核心：自动点击关闭AI内容速览按钮
+frame.onload = function () {
+    // 尝试多次点击，确保生效
+    const closeAISidebar = () => {
+        try {
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            // 适配飞书关闭侧边栏的按钮（×号或折叠按钮）
+            const closeBtn = doc.querySelector('[aria-label="关闭侧边栏"], [aria-label="隐藏侧边栏"], .sidebar-close-btn, .collapse-btn');
+            if (closeBtn) {
+                closeBtn.click();
+                console.log("已自动关闭AI内容速览侧边栏");
+            }
+        } catch (e) {
+            // 跨域限制时静默失败
+            console.log("跨域限制，无法直接操作iframe内元素");
+        }
+    };
+
+    // 页面加载后立即尝试，再延迟1秒尝试一次（防止元素还没渲染出来）
+    closeAISidebar();
+    setTimeout(closeAISidebar, 1000);
 };
 </script>
 </body>
