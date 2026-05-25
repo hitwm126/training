@@ -9,11 +9,8 @@
         .video{width:100%;aspect-ratio:16/9;background:#000}
         .status{margin:10px 0;color:#666}
         .progress{margin:10px 0;color:#0066ff;font-weight:bold}
-        .tip{color:#ff6600;margin:10px 0}
         button{padding:10px 20px;background:#0066ff;color:#fff;border:none;border-radius:6px;cursor:pointer;margin:5px 0}
         button:disabled{background:#ccc;cursor:not-allowed}
-        #startBtn{background:#00b42a}
-        #pauseBtn{background:#ff6600;display:none}
     </style>
 </head>
 <body>
@@ -21,85 +18,67 @@
     <h2>培训视频学习</h2>
     <div id="userInfo" class="status">正在验证飞书身份...</div>
 
-    <!-- 飞书视频 iframe 保留不变 -->
     <iframe id="videoFrame" class="video" src="https://saic-gm.feishu.cn/file/AC1dbFxXio5iAIxJwS0c5dssn0b" frameborder="0" allow="autoplay" allowfullscreen></iframe>
 
-    <div id="tipText" class="tip">点击按钮可同步控制视频播放/暂停</div>
-    <button id="startBtn">开始学习</button>
-    <button id="pauseBtn">暂停学习</button>
-
-    <div id="progressText" class="progress">学习进度：0% / 需完成80%解锁提交</div>
-    <br>
+    <!-- 只保留进度 + 提交按钮 -->
+    <div id="progressText" class="progress">学习进度：0% / 需学习10分钟解锁提交</div>
     <button id="submitBtn" style="display:none" disabled>已学习完毕，提交记录</button>
     <div id="msg" class="status"></div>
 </div>
 
 <script>
-// ================= 配置 =================
 const APP_ID = "cli_aa847d2bff64dbd3";
 const FORM_URL = "https://saic-gm.feishu.cn/share/base/form/shrcnmgO6ZVJsGWTBzlmb2oTVmh";
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const params = new URLSearchParams(location.search);
 const code = params.get("code");
 
-const VIDEO_TOTAL_SECONDS = 778; // 12分58秒
-const WATCH_PERCENT = 80;
-const NEED_SECONDS = VIDEO_TOTAL_SECONDS * WATCH_PERCENT / 100;
+// 目标：学习 10 分钟（600秒）
+const NEED_SECONDS = 600;
 
 let studySeconds = 0;
-let isStudying = false;
 let timer = null;
 let isUnlock = false;
-const frame = document.getElementById("videoFrame");
 
-// 加载本地进度
+// 加载本地保存的进度
 function loadProgress() {
     let save = localStorage.getItem("study_progress");
     if (save) {
         let data = JSON.parse(save);
         if (Date.now() - data.time < 86400000) {
             studySeconds = data.seconds || 0;
-            updateProgress();
         }
     }
 }
 
-// 更新进度
+// 更新进度显示
 function updateProgress() {
-    let percent = (studySeconds / VIDEO_TOTAL_SECONDS) * 100;
+    let percent = (studySeconds / NEED_SECONDS) * 100;
     percent = Math.min(percent, 100);
-    document.getElementById("progressText").innerText = `学习进度：${percent.toFixed(1)}% / 需完成${WATCH_PERCENT}%解锁提交`;
+    
+    document.getElementById("progressText").innerText = 
+        `学习进度：${percent.toFixed(1)}% / 需学习10分钟解锁提交`;
 
+    // 达到10分钟，解锁按钮
     if (studySeconds >= NEED_SECONDS && !isUnlock) {
         isUnlock = true;
+        clearInterval(timer);
         document.getElementById("submitBtn").disabled = false;
-        document.getElementById("progressText").innerText = `✅ 进度已达标，可提交！`;
+        document.getElementById("progressText").innerText = "✅ 学习完成，可提交记录！";
         document.getElementById("progressText").style.color = "#00b42a";
-        stopStudy();
     }
 }
 
-// ==========================================
-// 核心：点击开始 → 模拟点击播放 + 开始计时
-// ==========================================
-function startStudy() {
-    if (isStudying || isUnlock) return;
-    isStudying = true;
-
-    // 模拟点击视频区域 → 自动播放
-    frame.focus();
-    const evt = new MouseEvent("click", { bubbles: true });
-    frame.dispatchEvent(evt);
-
-    // 按钮切换
-    document.getElementById("startBtn").style.display = "none";
-    document.getElementById("pauseBtn").style.display = "inline-block";
-    document.getElementById("tipText").innerText = "✅ 视频播放中，计时已启动";
-
-    // 计时开始
+// 自动开始计时
+function startTimer() {
+    loadProgress();
+    updateProgress();
+    
     timer = setInterval(() => {
+        if (isUnlock) return;
         studySeconds++;
         updateProgress();
+        // 保存进度
         localStorage.setItem("study_progress", JSON.stringify({
             seconds: studySeconds,
             time: Date.now()
@@ -107,34 +86,16 @@ function startStudy() {
     }, 1000);
 }
 
-// ==========================================
-// 核心：点击暂停 → 模拟点击暂停 + 停止计时
-// ==========================================
-function stopStudy() {
-    isStudying = false;
-    clearInterval(timer);
-
-    // 模拟点击暂停视频
-    frame.focus();
-    const evt = new MouseEvent("click", { bubbles: true });
-    frame.dispatchEvent(evt);
-
-    document.getElementById("startBtn").style.display = "inline-block";
-    document.getElementById("pauseBtn").style.display = "none";
-    document.getElementById("tipText").innerText = "⏸ 视频已暂停，计时已停止";
-}
-
-// ================= 初始化 =================
+// 飞书登录验证
 if (!code) {
     window.location.href = `https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${APP_ID}&response_type=code`;
 } else {
+    // 验证成功
     document.getElementById("userInfo").innerText = "✅ 飞书身份验证成功";
     document.getElementById("submitBtn").style.display = "block";
-    loadProgress();
-    updateProgress();
-
-    document.getElementById("startBtn").onclick = startStudy;
-    document.getElementById("pauseBtn").onclick = stopStudy;
+    
+    // 自动开始计时
+    startTimer();
 }
 
 // 提交
